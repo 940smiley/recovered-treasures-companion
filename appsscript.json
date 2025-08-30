@@ -1,0 +1,37 @@
+{
+  "timeZone": "America/Chicago",
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/photoslibrary.readonly",
+    "https://www.googleapis.com/auth/script.container.ui",
+    "https://www.googleapis.com/auth/drive"
+      ],
+  "addOns": {
+    "common": {
+      "name": "Catalog Companion",
+      "logoUrl": "https://drive.google.com/uc?id=YOUR_LOGO_FILE_ID",
+      "layoutProperties": {
+        "primaryColor": "#3367d6",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    "sheets": {
+      "homepageTrigger": {
+        "runFunction": "openSidebar",
+        "enabled": true
+      }
+    }
+  },
+  "dependencies": {
+    "enabledAdvancedServices": [
+      {
+        "userSymbol": "Drive",
+        "version": "v2",
+        "serviceId": "drive"
+      }
+    ]
+  }
+}
