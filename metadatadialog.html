@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head><base target="_top"></head>
+<body>
+  <h3>Update Metadata</h3>
+  <input type="number" id="row" placeholder="Row number"><br>
+  <input type="text" id="title" placeholder="Title"><br>
+  <input type="text" id="desc" placeholder="Description"><br>
+  <input type="text" id="tags" placeholder="Tags"><br>
+  <button onclick="save()">Save</button>
+
+  <script>
+    function save() {
+      const row = parseInt(document.getElementById('row').value);
+      const title = document.getElementById('title').value;
+      const desc = document.getElementById('desc').value;
+      const tags = document.getElementById('tags').value;
+      google.script.run.withSuccessHandler(() => alert('Saved')).withFailureHandler(err => alert(err.message)).saveMetadata(row, title, desc, tags);
+    }
+  </script>
+</body>
+</html>
