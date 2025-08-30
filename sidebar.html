@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    #photoPickerModal {
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      background: #f9f9f9;
+    }
+    #photoGrid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .photo-wrapper {
+      border: 2px solid transparent;
+      cursor: pointer;
+    }
+    .photo-wrapper.selected {
+      border-color: #3367d6;
+    }
+    .photo-wrapper img {
+      width: 100px;
+      height: auto;
+    }
+  </style>
+</head>
+<body>
+  <h3>📸 Import from Google Photos</h3>
+  <button onclick="launchPhotoPicker()">Launch Photo Picker</button>
+
+  <div id="photoPickerModal" style="display:none;">
+    <h4>Select Photos</h4>
+    <div id="photoGrid"></div>
+    <button onclick="importSelectedPhotos()">✅ Import Selected</button>
+  </div>
+
+  <hr>
+
+  <h3>🔍 Reverse Search</h3>
+  <input type="number" id="rowNum" placeholder="Row number">
+  <button onclick="reverseSearch()">Search</button>
+
+  <script>
+    let selectedPhotos = [];
+
+    function launchPhotoPicker() {
+      google.script.run.withSuccessHandler(renderPhotoPicker).fetchRecentPhotos();
+    }
+
+    function renderPhotoPicker(photoList) {
+      const modal = document.getElementById('photoPickerModal');
+      const grid = document.getElementById('photoGrid');
+      modal.style.display = 'block';
+      grid.innerHTML = '';
+      selectedPhotos = [];
+
+      photoList.forEach(photo => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'photo-wrapper';
+
+        const img = document.createElement('img');
+        img.src = photo.baseUrl;
+        img.alt = photo.filename;
+
+        wrapper.onclick = () => {
+          const index = selectedPhotos.findIndex(p => p.id === photo.id);
+          if (index > -1) {
+            selectedPhotos.splice(index, 1);
+            wrapper.classList.remove('selected');
+          } else {
+            selectedPhotos.push(photo);
+            wrapper.classList.add('selected');
+          }
+        };
+
+        wrapper.appendChild(img);
+        grid.appendChild(wrapper);
+      });
+    }
+
+    function importSelectedPhotos() {
+      google.script.run.importPhotosBatch(selectedPhotos);
+      document.getElementById('photoPickerModal').style.display = 'none';
+    }
+
+    function reverseSearch() {
+      const row = document.getElementById('rowNum').value;
+      google.script.run.reverseSearch(row);
+    }
+  </script>
+</body>
+</html>
