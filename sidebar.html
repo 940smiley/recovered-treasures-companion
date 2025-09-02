@@ -39,10 +39,28 @@
 
     <hr>
 
-    <button onclick="processAllImages()">Process All Images</button>
+    <button id="processButton" onclick="handleProcessImages()">Process All Images</button>
 
-  <script>
-    let selectedPhotos = [];
+    <script>
+      async function handleProcessImages() {
+        const button = document.getElementById('processButton');
+        button.disabled = true;
+        button.textContent = 'Processing...';
+        
+        try {
+          await google.script.run.withSuccessHandler(() => {
+            button.textContent = 'Process All Images';
+            button.disabled = false;
+          }).withFailureHandler((error) => {
+            console.error('Processing failed:', error);
+            button.textContent = 'Process All Images';
+            button.disabled = false;
+          }).processAllImages();
+        } catch (error) {
+          button.textContent = 'Process All Images';
+          button.disabled = false;
+        }
+      }
 
     function launchPhotoPicker() {
       google.script.run.withSuccessHandler(renderPhotoPicker).fetchRecentPhotos();
