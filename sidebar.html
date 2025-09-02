@@ -31,17 +31,15 @@
   <h3>📸 Import from Google Photos</h3>
   <button onclick="launchPhotoPicker()">Launch Photo Picker</button>
 
-  <div id="photoPickerModal" style="display:none;">
-    <h4>Select Photos</h4>
-    <div id="photoGrid"></div>
-    <button onclick="importSelectedPhotos()">✅ Import Selected</button>
-  </div>
+    <div id="photoPickerModal" style="display:none;">
+      <h4>Select Photos</h4>
+      <div id="photoGrid"></div>
+      <button onclick="importSelectedPhotos()">✅ Import Selected</button>
+    </div>
 
-  <hr>
+    <hr>
 
-  <h3>🔍 Reverse Search</h3>
-  <input type="number" id="rowNum" placeholder="Row number">
-  <button onclick="reverseSearch()">Search</button>
+    <button onclick="processAllImages()">Process All Images</button>
 
   <script>
     let selectedPhotos = [];
@@ -81,15 +79,14 @@
       });
     }
 
-    function importSelectedPhotos() {
-      google.script.run.importPhotosBatch(selectedPhotos);
-      document.getElementById('photoPickerModal').style.display = 'none';
-    }
+      function importSelectedPhotos() {
+        google.script.run.importSelectedPhotosToMaster(selectedPhotos);
+        document.getElementById('photoPickerModal').style.display = 'none';
+      }
 
-    function reverseSearch() {
-      const row = document.getElementById('rowNum').value;
-      google.script.run.reverseSearch(row);
-    }
-  </script>
-</body>
-</html>
+      function processAllImages() {
+        google.script.run.processAllImages();
+      }
+    </script>
+  </body>
+  </html>

@@ -1,20 +1,33 @@
 const CONFIG = {
-  SHEET_NAME: 'Inventory',
-  COL_MEDIA_ID: 2,
+  MASTER_SHEET_NAME: 'MASTER',
+  COL_IMAGE: 1,
+  COL_BASEURL: 2,
   COL_TITLE: 3,
   COL_DESC: 4,
   COL_TAGS: 5,
-  COL_IMAGE_URL: 6,
   EXPORT_SHEET_NAME: 'eBayExport',
-  PHOTOS_SCOPE: 'https://www.googleapis.com/auth/photoslibrary'
+  PHOTOS_SCOPE: 'https://www.googleapis.com/auth/photoslibrary',
+  SHEETS: {
+    ERRORS: 'Errors',
+    CATEGORIES: 'Categories',
+    STAMPS: 'Stamps',
+    CATAWIKI: 'catawiki',
+    FACEBOOK: 'facebook',
+    COLLX: 'collx',
+    TCGPLAYER: 'tcgplayer',
+    HOBBYDB: 'hobbydb',
+    COLNECT: 'colnect'
+  },
+  DEFAULT_CATEGORIES: ['Stamps', 'Trading Cards']
 };
 
 
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu('Recovered Treasures')
+    .addItem('Initialize Workbook', 'initializeWorkbook')
     .addItem('Import Photos', 'showSidebar')
-    .addItem('Reverse Search', 'reverseSearchImage')
+    .addItem('Process All Images', 'processAllImages')
     .addToUi();
 }
 
@@ -59,39 +72,27 @@ function fetchRecentPhotos() {
   })) || [];
 }
 
-
-
-function savePhotoMetadata(photo) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  sheet.appendRow([photo.filename, photo.baseUrl, photo.mimeType]);
-}
-
-
-function importPhotosBatch(photoArray) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+function importSelectedPhotosToMaster(photoArray) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.MASTER_SHEET_NAME);
+  if (!sheet) throw new Error('Master sheet not found');
   photoArray.forEach(photo => {
-    sheet.appendRow([photo.filename, photo.baseUrl, photo.mimeType]);
+    const row = sheet.getLastRow() + 1;
+    const imageFormula = `=IMAGE("${photo.baseUrl}=w800")`;
+    sheet.getRange(row, CONFIG.COL_IMAGE).setFormula(imageFormula);
+    sheet.getRange(row, CONFIG.COL_BASEURL).setValue(photo.baseUrl);
+    sheet.getRange(row, CONFIG.COL_TITLE, 1, 3).clearContent();
   });
 }
 
-function reverseSearchImage(row) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_NAME);
-  const imageUrl = sheet.getRange(row, CONFIG.COL_IMAGE_URL).getValue();
-  if (!imageUrl) throw new Error('No image URL found in row');
-  const searchUrl = `https://www.google.com/searchbyimage?image_url=${encodeURIComponent(imageUrl)}`;
-  const html = HtmlService.createHtmlOutput(`<script>window.open('${searchUrl}', '_blank');google.script.host.close();</script>`);
-  SpreadsheetApp.getUi().showModalDialog(html, 'Reverse Image Search');
-}
-
 function saveMetadata(row, title, desc, tags) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_NAME);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.MASTER_SHEET_NAME);
   sheet.getRange(row, CONFIG.COL_TITLE).setValue(title);
   sheet.getRange(row, CONFIG.COL_DESC).setValue(desc);
   sheet.getRange(row, CONFIG.COL_TAGS).setValue(tags);
 }
 
 function exportSelectedToEbay() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_NAME);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.MASTER_SHEET_NAME);
   const exportSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.EXPORT_SHEET_NAME) || SpreadsheetApp.getActiveSpreadsheet().insertSheet(CONFIG.EXPORT_SHEET_NAME);
   exportSheet.clear();
   const data = sheet.getDataRange().getValues();
@@ -99,6 +100,68 @@ function exportSelectedToEbay() {
   const headers = ['Title', 'Description', 'Tags', 'Image URL'];
   exportSheet.appendRow(headers);
   selected.forEach(row => {
-    exportSheet.appendRow([row[CONFIG.COL_TITLE - 1], row[CONFIG.COL_DESC - 1], row[CONFIG.COL_TAGS - 1], row[CONFIG.COL_IMAGE_URL - 1]]);
+    exportSheet.appendRow([row[CONFIG.COL_TITLE - 1], row[CONFIG.COL_DESC - 1], row[CONFIG.COL_TAGS - 1], row[CONFIG.COL_BASEURL - 1]]);
   });
+}
+
+function initializeWorkbook() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const requiredSheets = [
+    CONFIG.MASTER_SHEET_NAME,
+    CONFIG.SHEETS.CATEGORIES,
+    CONFIG.SHEETS.ERRORS,
+    CONFIG.SHEETS.STAMPS,
+    CONFIG.SHEETS.CATAWIKI,
+    CONFIG.SHEETS.FACEBOOK,
+    CONFIG.SHEETS.COLLX,
+    CONFIG.SHEETS.TCGPLAYER,
+    CONFIG.SHEETS.HOBBYDB,
+    CONFIG.SHEETS.COLNECT
+  ];
+
+  requiredSheets.forEach(name => {
+    if (!ss.getSheetByName(name)) {
+      const newSheet = ss.insertSheet(name);
+      if (name === CONFIG.SHEETS.CATEGORIES) {
+        const values = CONFIG.DEFAULT_CATEGORIES.map(c => [c]);
+        newSheet.getRange(1, 1, values.length, 1).setValues(values);
+      }
+    }
+  });
+
+  ['ebay-template', 'DONT-TOUCH'].forEach(name => {
+    const sheet = ss.getSheetByName(name);
+    if (sheet) sheet.protect().setWarningOnly(true);
+  });
+}
+
+function processAllImages() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.MASTER_SHEET_NAME);
+  const errorsSheet = ss.getSheetByName(CONFIG.SHEETS.ERRORS);
+  const lastRow = sheet.getLastRow();
+  for (let row = 2; row <= lastRow; row++) {
+    const title = sheet.getRange(row, CONFIG.COL_TITLE).getValue();
+    if (!title) {
+      const baseUrl = sheet.getRange(row, CONFIG.COL_BASEURL).getValue();
+      try {
+        const metadata = getImageMetadata(baseUrl);
+        sheet.getRange(row, CONFIG.COL_TITLE).setValue(metadata.title || '');
+        sheet.getRange(row, CONFIG.COL_DESC).setValue(metadata.description || '');
+        sheet.getRange(row, CONFIG.COL_TAGS).setValue(metadata.tags || '');
+      } catch (err) {
+        if (errorsSheet) errorsSheet.appendRow([row, err.message]);
+      }
+    }
+  }
+}
+
+function getImageMetadata(imageUrl) {
+  // Placeholder for AI metadata retrieval.
+  // Replace with call to an AI service such as Google Vision API.
+  return {
+    title: 'Unknown Item',
+    description: '',
+    tags: ''
+  };
 }
